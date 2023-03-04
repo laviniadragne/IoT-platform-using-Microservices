@@ -1,0 +1,64 @@
+version: '3'
+
+services:
+  server:
+    image: server_image
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_NAME: my-db
+      BROKER: mosquitto
+      SERVICE_DATABASE: db
+      DEBUG_DATA_FLOW: 'true'
+    networks:
+      - mqtt_server_network
+      - insert_messages_network
+    depends_on: 
+      - db
+    restart: unless-stopped
+
+  db:
+    image: influxdb:1.8.10
+    environment:
+      INFLUXDB_DB: db0
+    restart: unless-stopped
+    volumes:
+      - dbdata:/var/lib/influxdb
+    networks:
+      - insert_messages_network
+      - view_dates_network
+
+  mosquitto:
+    image: eclipse-mosquitto:1.6
+    ports:
+      - 1883:1883
+    restart: unless-stopped
+    networks:
+      - mqtt_server_network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - 80:3000
+    environment:
+      GF_SECURITY_ADMIN_USER: asistent
+      GF_SECURITY_ADMIN_PASSWORD: grafanaSPRC2021
+    networks:
+      - view_dates_network
+    restart: unless-stopped
+    depends_on: 
+      - db
+    volumes:
+      - grafana-provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  grafana-provisioning:
+  grafana-data:
+  dbdata:
+
+networks:
+  mqtt_server_network:
+  insert_messages_network:
+  view_dates_network:

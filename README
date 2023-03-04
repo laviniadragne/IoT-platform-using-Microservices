@@ -1,0 +1,111 @@
+Nume: Dragne Lavinia-Stefana
+Grupa: 344C1
+
+
+            SPRC 2022-2023 - Tema 3 - Platformă IoT folosind
+                            Microservicii
+
+
+* server.py
+
+* Adaptorul de mesaje l-am implementat in fisierul server.py. Acesta este
+in acelasi timp un client pentru brokerul de mesaje si introduce si date
+in baza my-db, de tip influxdb.
+* Numele bazei de date instantiate, flag-ul care activeaza
+log-urile, host-ul brokerului si hostul pentru clientul
+bazei de date sunt declarate ca variabile de mediu in fisierul
+stack.yml si folosite in codul de python.
+* Pentru a ma conecta la baza de date, am folosit
+biblioteca InfluxDBClient.
+* Functionalitate:
+    * Se creaza baza de date, cu politica de retentie a datelor
+    cu durata infinita, folosindu-se functia
+    create_influx_database(). Conectarea se va realiza pe
+    portul 8086.
+    * Se creaza brokerul de mesaje, ca fiind un client
+    pentru mqtt. Pentru introducerea in baza de date a 
+    mesajelor primite, am folosit variabila userdata
+    setata ca fiind baza de date. Conectarea la broker
+    se face pe portul 1883.
+    * Se face abonarea la toate topicurile.
+    * La primirea unui mesaj, se face parsarea dupa
+    locatie, statie, timestamp. Pentru fiecare cheie,
+    se introduce in baza de date o intrare de tipul:
+                data = {"measurement": station.key,
+                "tags": {"location": location, "station" : station},
+                "fields": {field_key: field_val}, "time": timestamp}
+    * Daca nu este primit un timestamp, se introduce cel
+    curent. 
+    * Daca mesajul este incorect, nu este introdus in baza
+    de date.
+    * Am folosit acest tip de intrari, pentru a putea respecta
+    formatul datelor interogate in dashboard-uri de Grafana.
+
+* Toate log-urile sunt trimise, doar daca variabila 
+DEBUG_DATA_FLOW este setata ca 'true' in stack.yml.
+* Pentru crearea serviciului am folosit un Dockerfile. 
+Toate dependintele de care este nevoie pentru rularea 
+adaptorului se gasesc in fisierul requirements.txt.
+
+
+
+* baza de date
+
+    * Am folosit imaginea 1.8.10, deoarece nu am putut
+    realiza conectarea fara date de autentificare intr-o
+    imagine de tipul 2.x. Pentru acestea este nevoie de 
+    un token de autentificare.
+    * Volumul dbdata al bazei de date este salvat la calea
+    /var/lib/influxdb.
+    
+
+* brokerul
+
+    * Am folosit imaginea eclipse-mosquitto:1.6, aceasta 
+    fiind folosita si in laboratorul 5. El expune portul
+    1883.
+
+* Grafana
+
+    * Am folosit cea mai recenta imagine de grafana.
+    * Aceasta expune portul 80.
+    * Username-ul si parola de autentificare sunt setate
+    in stack.yml ca variabile de mediu.
+
+* client_test.py
+
+    * Am creat fisierul client_test.py pentru a testa
+    serverul, introducerea in baza de date a datelor si
+    dashboard-urile din Grafana. 
+    * Rularea lui se poate face manual, dupa ce au pornit
+    toate serviciile din stack.yml.
+
+
+* stack.yml:
+
+    * networks: 
+    mqtt_server_network: retea in care este adaptorul, serviciul
+    mosquitto
+    insert_messages_network: retea in care este adaptorul si
+    baza de date
+    view_dates_network: retea in care este baza de date si
+    grafana
+
+* rulare:
+    * pentru rularea folosind Docker Swarm am realizat scriptul
+    run.sh, care initializeaza swarm cu IP-ul 127.0.0.1,
+    porneste serviciul registry, pentru distributia imaginilor
+    locale, buildeaza imaginile de docker si
+    creaza stack-ul sprc3.
+    * este nevoie si de rularea independenta a client_test.py
+    pentru introducerea datelor in db
+
+* clear:
+    * scriptul clear.sh sterge stack-ul sprc3, serviciul registry
+    si iese din nodul de swarm
+
+
+* Referinte:
+    * https://docs.docker.com/engine/swarm/stack-deploy/
+    * https://www.youtube.com/watch?v=49hKs_H5Xf0
+
